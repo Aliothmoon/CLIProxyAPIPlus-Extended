@@ -42,7 +42,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=tag
             type=sha,prefix=
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'dev') }}
 
       - name: Generate Build Args
         run: |
