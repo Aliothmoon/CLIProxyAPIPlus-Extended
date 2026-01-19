@@ -211,6 +211,7 @@ func (e *AntigravityExecutor) Execute(ctx context.Context, auth *cliproxyauth.Au
 		converted := sdktranslator.TranslateNonStream(ctx, to, from, req.Model, bytes.Clone(opts.OriginalRequest), translated, bodyBytes, &param)
 		resp = cliproxyexecutor.Response{Payload: []byte(converted)}
 		reporter.ensurePublished(ctx)
+		recordAntigravityBaseURLSuccess(auth, baseURL)
 		return resp, nil
 	}
 
@@ -392,6 +393,7 @@ func (e *AntigravityExecutor) executeClaudeNonStream(ctx context.Context, auth *
 		converted := sdktranslator.TranslateNonStream(ctx, to, from, req.Model, bytes.Clone(opts.OriginalRequest), translated, resp.Payload, &param)
 		resp = cliproxyexecutor.Response{Payload: []byte(converted)}
 		reporter.ensurePublished(ctx)
+		recordAntigravityBaseURLSuccess(auth, baseURL)
 
 		return resp, nil
 	}
@@ -748,6 +750,7 @@ func (e *AntigravityExecutor) ExecuteStream(ctx context.Context, auth *cliproxya
 				reporter.ensurePublished(ctx)
 			}
 		}(httpResp)
+		recordAntigravityBaseURLSuccess(auth, baseURL)
 		return stream, nil
 	}
 
@@ -893,6 +896,7 @@ func (e *AntigravityExecutor) CountTokens(ctx context.Context, auth *cliproxyaut
 		if httpResp.StatusCode >= http.StatusOK && httpResp.StatusCode < http.StatusMultipleChoices {
 			count := gjson.GetBytes(bodyBytes, "totalTokens").Int()
 			translated := sdktranslator.TranslateTokenCount(respCtx, to, from, count, bodyBytes)
+			recordAntigravityBaseURLSuccess(auth, baseURL)
 			return cliproxyexecutor.Response{Payload: []byte(translated)}, nil
 		}
 
@@ -1027,6 +1031,7 @@ func FetchAntigravityModels(ctx context.Context, auth *cliproxyauth.Auth, cfg *c
 			}
 			models = append(models, modelInfo)
 		}
+		recordAntigravityBaseURLSuccess(auth, baseURL)
 		return models
 	}
 	return nil
@@ -1363,10 +1368,58 @@ func antigravityBaseURLFallbackOrder(auth *cliproxyauth.Auth) []string {
 	if base := resolveCustomAntigravityBaseURL(auth); base != "" {
 		return []string{base}
 	}
-	return []string{
+
+	defaultOrder := []string{
 		antigravitySandboxBaseURLDaily,
 		antigravityBaseURLDaily,
 		antigravityBaseURLProd,
+	}
+
+	// Check if we have a preferred baseURL from previous successful requests
+	preferred := getPreferredAntigravityBaseURL(auth)
+	if preferred == "" {
+		return defaultOrder
+	}
+
+	// Reorder: preferred first, then others in original order
+	result := make([]string, 0, len(defaultOrder))
+	result = append(result, preferred)
+	for _, u := range defaultOrder {
+		if u != preferred {
+			result = append(result, u)
+		}
+	}
+	return result
+}
+
+// getPreferredAntigravityBaseURL returns the last successful baseURL from auth metadata.
+func getPreferredAntigravityBaseURL(auth *cliproxyauth.Auth) string {
+	if auth == nil || auth.Metadata == nil {
+		return ""
+	}
+	if v, ok := auth.Metadata["antigravity_preferred_base_url"].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
+// recordAntigravityBaseURLSuccess records a successful baseURL to auth metadata
+// so that subsequent requests can prioritize it.
+func recordAntigravityBaseURLSuccess(auth *cliproxyauth.Auth, baseURL string) {
+	if auth == nil || baseURL == "" {
+		return
+	}
+	// Skip if it's a custom base URL (user-configured)
+	if custom := resolveCustomAntigravityBaseURL(auth); custom != "" {
+		return
+	}
+	if auth.Metadata == nil {
+		auth.Metadata = make(map[string]any)
+	}
+	current, _ := auth.Metadata["antigravity_preferred_base_url"].(string)
+	if current != baseURL {
+		auth.Metadata["antigravity_preferred_base_url"] = baseURL
+		log.Debugf("antigravity executor: updated preferred base url to %s", baseURL)
 	}
 }
 
