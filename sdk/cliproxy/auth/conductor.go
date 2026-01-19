@@ -597,6 +597,10 @@ func (m *Manager) executeMixedOnce(ctx context.Context, providers []string, req 
 		resp, errExec := executor.Execute(execCtx, auth, execReq, opts)
 		result := Result{AuthID: auth.ID, Provider: provider, Model: routeModel, Success: errExec == nil}
 		if errExec != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errExec, context.Canceled) || errors.Is(errExec, context.DeadlineExceeded) {
+				return cliproxyexecutor.Response{}, errExec
+			}
 			result.Error = &Error{Message: errExec.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errExec, &se) && se != nil {
@@ -646,6 +650,10 @@ func (m *Manager) executeCountMixedOnce(ctx context.Context, providers []string,
 		resp, errExec := executor.CountTokens(execCtx, auth, execReq, opts)
 		result := Result{AuthID: auth.ID, Provider: provider, Model: routeModel, Success: errExec == nil}
 		if errExec != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errExec, context.Canceled) || errors.Is(errExec, context.DeadlineExceeded) {
+				return cliproxyexecutor.Response{}, errExec
+			}
 			result.Error = &Error{Message: errExec.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errExec, &se) && se != nil {
@@ -694,6 +702,10 @@ func (m *Manager) executeStreamMixedOnce(ctx context.Context, providers []string
 		execReq.Model = m.applyAPIKeyModelAlias(auth, execReq.Model)
 		chunks, errStream := executor.ExecuteStream(execCtx, auth, execReq, opts)
 		if errStream != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errStream, context.Canceled) || errors.Is(errStream, context.DeadlineExceeded) {
+				return nil, errStream
+			}
 			rerr := &Error{Message: errStream.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errStream, &se) && se != nil {
@@ -761,6 +773,10 @@ func (m *Manager) executeWithProvider(ctx context.Context, provider string, req 
 		resp, errExec := executor.Execute(execCtx, auth, execReq, opts)
 		result := Result{AuthID: auth.ID, Provider: provider, Model: routeModel, Success: errExec == nil}
 		if errExec != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errExec, context.Canceled) || errors.Is(errExec, context.DeadlineExceeded) {
+				return cliproxyexecutor.Response{}, errExec
+			}
 			result.Error = &Error{Message: errExec.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errExec, &se) && se != nil {
@@ -810,6 +826,10 @@ func (m *Manager) executeCountWithProvider(ctx context.Context, provider string,
 		resp, errExec := executor.CountTokens(execCtx, auth, execReq, opts)
 		result := Result{AuthID: auth.ID, Provider: provider, Model: routeModel, Success: errExec == nil}
 		if errExec != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errExec, context.Canceled) || errors.Is(errExec, context.DeadlineExceeded) {
+				return cliproxyexecutor.Response{}, errExec
+			}
 			result.Error = &Error{Message: errExec.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errExec, &se) && se != nil {
@@ -858,6 +878,10 @@ func (m *Manager) executeStreamWithProvider(ctx context.Context, provider string
 		execReq.Model = m.applyAPIKeyModelAlias(auth, execReq.Model)
 		chunks, errStream := executor.ExecuteStream(execCtx, auth, execReq, opts)
 		if errStream != nil {
+			// If context was canceled or deadline exceeded, return immediately without retrying
+			if errors.Is(errStream, context.Canceled) || errors.Is(errStream, context.DeadlineExceeded) {
+				return nil, errStream
+			}
 			rerr := &Error{Message: errStream.Error()}
 			var se cliproxyexecutor.StatusError
 			if errors.As(errStream, &se) && se != nil {
