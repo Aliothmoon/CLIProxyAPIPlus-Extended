@@ -1370,9 +1370,9 @@ func antigravityBaseURLFallbackOrder(auth *cliproxyauth.Auth) []string {
 	}
 
 	defaultOrder := []string{
-		antigravitySandboxBaseURLDaily,
-		antigravityBaseURLDaily,
 		antigravityBaseURLProd,
+		antigravityBaseURLDaily,
+		antigravitySandboxBaseURLDaily,
 	}
 
 	// Check if we have a preferred baseURL from previous successful requests
