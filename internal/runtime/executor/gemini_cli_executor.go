@@ -848,6 +848,7 @@ func newGeminiStatusErr(statusCode int, body []byte) statusErr {
 // The error response contains a RetryInfo.retryDelay field in the format "0.847655010s".
 // Returns the parsed duration or an error if it cannot be determined.
 func parseRetryDelay(errorBody []byte) (*time.Duration, error) {
+	log.Debug("parseRetryDelay", string(errorBody))
 	// Try to parse the retryDelay from the error response
 	// Format: error.details[].retryDelay where @type == "type.googleapis.com/google.rpc.RetryInfo"
 	details := gjson.GetBytes(errorBody, "error.details")
