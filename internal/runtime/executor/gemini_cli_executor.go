@@ -848,7 +848,7 @@ func newGeminiStatusErr(statusCode int, body []byte) statusErr {
 // The error response contains a RetryInfo.retryDelay field in the format "0.847655010s".
 // Returns the parsed duration or an error if it cannot be determined.
 func parseRetryDelay(errorBody []byte) (*time.Duration, error) {
-	log.Debug("parseRetryDelay", string(errorBody))
+	log.Debug("parseRetryDelay ", string(errorBody))
 	// Try to parse the retryDelay from the error response
 	// Format: error.details[].retryDelay where @type == "type.googleapis.com/google.rpc.RetryInfo"
 	details := gjson.GetBytes(errorBody, "error.details")
@@ -869,9 +869,17 @@ func parseRetryDelay(errorBody []byte) (*time.Duration, error) {
 		}
 
 		// Fallback: try ErrorInfo.metadata.quotaResetDelay (e.g., "373.801628ms")
+		// or handle MODEL_CAPACITY_EXHAUSTED with a fixed 20s delay
 		for _, detail := range details.Array() {
 			typeVal := detail.Get("@type").String()
 			if typeVal == "type.googleapis.com/google.rpc.ErrorInfo" {
+				// Check for MODEL_CAPACITY_EXHAUSTED - return fixed 20s delay
+				reason := detail.Get("reason").String()
+				if reason == "MODEL_CAPACITY_EXHAUSTED" {
+					duration := 20 * time.Second
+					return &duration, nil
+				}
+
 				quotaResetDelay := detail.Get("metadata.quotaResetDelay").String()
 				if quotaResetDelay != "" {
 					duration, err := time.ParseDuration(quotaResetDelay)
@@ -895,6 +903,7 @@ func parseRetryDelay(errorBody []byte) (*time.Duration, error) {
 			}
 		}
 	}
-
-	return nil, fmt.Errorf("no RetryInfo found")
+	var retry = 15 * time.Second
+	return &retry, nil
+	//return nil, fmt.Errorf("no RetryInfo found")
 }
